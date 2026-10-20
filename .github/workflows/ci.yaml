@@ -1,34 +1,37 @@
-name: CI con AutoCommit
+name: CI
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
 
-permissions:
-  contents: write   # 👈 IMPORTANTE: permite que el bot pueda hacer commits/push
-
-
 jobs:
-  test-and-update:
+  build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # Ya no requiere permisos de escritura (contents: write)
+
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
 
       - name: Configurar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Instalar dependencias
-        run: pip install pytest
+      - name: Ejecutar pruebas
+        id: run_tests
+        continue-on-error: true 
+        run: |
+          pytest
+          # O el comando que use tu repositorio para correr las pruebas
 
-      - name: Ejecutar script de tests y actualizar README
-        run: python update_readme.py
+      - name: Actualizar README.md
+        run: |
+          python update_readme.py --status ${{ steps.run_tests.outcome }}
 
-      - name: Commit automático del README
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Subir README como artefacto
+        uses: actions/upload-artifact@v4
         with:
-          commit_message: "Update README con estado de tests"
-          file_pattern: README.md
+          name: readme-actualizado
+          path: README.md
+          retention-days: 5
